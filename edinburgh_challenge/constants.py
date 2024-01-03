@@ -1,0 +1,19 @@
+from edinburgh_challenge.utility import Location
+from dataclasses import dataclass
+
+
+police_station_1 = Location(x=55.868709, y=-4.2579871)
+police_station_2 = Location (x=55.849171,y= -4.2164508)
+police_station_3 = Location(x=55.830168,y= -4.2468263)
+
+@dataclass
+class PoliceStations:
+    one:  police_station_1
+    two: police_station_2
+    three: police_station_3
+
+police_stations = PoliceStations(
+        one=police_station_1,
+        two=police_station_2,
+        three=police_station_3
+        )

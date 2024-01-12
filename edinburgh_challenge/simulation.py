@@ -155,7 +155,7 @@ class Simulation:
             day = self.current_time // 24 + 1
             hour = self.current_time % 24
 
-            # Update officer availability at the start of each timestep
+            # Update officer availability attotal_officer_hours the start of each timestep
             self.update_officer_availability()
 
             # Update officers for shift change
@@ -542,7 +542,7 @@ class SimulationWithMaxUtilisation:
         #            total_officer_hours[officer.name] += (simulation.current_time - officer.return_time)
 
         #officer_utilization = sum(total_officer_hours.values()) / (len(total_officer_hours) * simulation.current_time) * 100
-        sum_total_office_hours = sum(total_officer_hours.values())
+        mean_total_office_hours = sum(total_officer_hours.values())/len(total_officer_hours.values())
         unresolved_incident_percentage = (unresolved_incidents / len(simulation.cumulative_incidents)) * 100 if simulation.cumulative_incidents else 0
 
         return {
@@ -551,7 +551,7 @@ class SimulationWithMaxUtilisation:
             "Mean Deployment Times": mean_deployment_times,
             "Threshold Compliance": threshold_compliance,
             #"Officer Utilization": officer_utilization,
-            "Total Officer Hours": sum_total_office_hours,
+            "Mean Officer Hours": mean_total_office_hours,
             "Unresolved Incident Percentage": unresolved_incident_percentage
         }
 

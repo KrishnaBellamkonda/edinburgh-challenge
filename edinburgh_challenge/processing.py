@@ -56,7 +56,7 @@ def calculate_simulation_performance(results_dict):
 
     # Second factor - Officer utilisation
     # 8 hours per shift, 7 days in the simulation (Scale - 0 to 1)
-    officer_utilisation = (mean_officer_hours)/(8*7)
+    officer_utilisation = (mean_officer_hours)/(8*7 +1)
 
     # Third factor - Unresolved Incidents (Scale - 0 to 1)
     unresolved_incidents = ((6*immediate_incompletion_pct)+ 2*(prompt_incompletion_pct) + 1*(standard_incompletion_pct))/9

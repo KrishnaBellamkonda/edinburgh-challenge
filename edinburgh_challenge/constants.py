@@ -17,3 +17,9 @@ police_stations = PoliceStations(
         two=police_station_2,
         three=police_station_3
         )
+
+police_stations_dict = {
+    "Station_1":police_station_1,
+    "Station_2":police_station_2,
+    "Station_3":police_station_3,
+}

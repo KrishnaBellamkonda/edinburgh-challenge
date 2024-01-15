@@ -533,7 +533,7 @@ class SimulationWithMaxUtilisation:
         completion_percentages = {p: (resolved_counts[p] / incident_counts[p]) * 100 if incident_counts[p] > 0 else 0 for p in incident_counts}
         mean_response_times = {p: np.mean(response_times[p]) if response_times[p] else 0 for p in response_times}
         mean_deployment_times = {p: np.mean(deployment_times[p]) if deployment_times[p] else 0 for p in deployment_times}
-        threshold_compliance = {p: (within_threshold_counts[p] / resolved_counts[p]) * 100 if resolved_counts[p] > 0 else 0 for p in incident_counts}
+        threshold_compliance = {p: (within_threshold_counts[p] / incident_counts[p]) * 100 if resolved_counts[p] > 0 else 0 for p in incident_counts}
 
         # Calculate officer utilization
         #for station in simulation.officers.values():

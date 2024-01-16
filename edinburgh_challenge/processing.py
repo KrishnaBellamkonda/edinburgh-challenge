@@ -23,7 +23,7 @@ def calculate_metric(results_dict):
 
     return metric
 
-def calculate_simulation_performance(results_dict):
+def calculate_simulation_performance(results_dict, verbose = False):
     # Information from the results analysis
     immediate_completion_pct = results_dict["Completion Percentages"]["Immediate"]
     immediate_threshold_pct = results_dict["Threshold Compliance"]["Immediate"]
@@ -60,6 +60,11 @@ def calculate_simulation_performance(results_dict):
 
     # Third factor - Unresolved Incidents (Scale - 0 to 1)
     unresolved_incidents = ((6*immediate_incompletion_pct)+ 2*(prompt_incompletion_pct) + 1*(standard_incompletion_pct))/9
+
+    if verbose:
+        print(f"{incident_within_threshold=}")
+        print(f"{officer_utilisation=}")
+        print(f"{unresolved_incidents=}")
 
     # Total scale, (0 to 1)
     performance_metric = 0.8*incident_within_threshold + 0.2*officer_utilisation - unresolved_incidents*0.3

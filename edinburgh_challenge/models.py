@@ -365,7 +365,6 @@ class GreedyModel(NaiveModel):
         r = 3956  # Radius of Earth in miles. Use 6371 for kilometers
         return c * r
 
-
     def get_incident_resolution_time(self, incident, officer, current_time):
         officer_police_station_location = self.police_stations_dict[officer.station]
         distance_to_incident = self.calculate_distance(officer_police_station_location.x,
@@ -444,7 +443,7 @@ class GreedyModel(NaiveModel):
         # Function to calculate the score based on distance and priority
         def calculate_score(travel_time, time_since_reported, priority):
             time_remaining = thresholds[priority] - time_since_reported - travel_time
-            urgency = time_remaining_factor/time_remaining
+            urgency = time_remaining_factor/(time_remaining+np.finfo(float).eps)
             #urgency = (time_since_reported + travel_time) / thresholds[priority]
             return urgency * priority_weights[priority]
 

@@ -5,3 +5,4 @@ matplotlib
 gym
 scipy
 scikit-learn
+osmnx

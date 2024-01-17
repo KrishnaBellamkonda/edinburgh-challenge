@@ -27,6 +27,7 @@ class Incident:
     resolving_officer: str = None
     response_time: float = None  # Global time when the response arrives at the scene
     resolution_time: float = None  # Global time when the incident is resolved
+    allocation_time:float = None
 
 @dataclass
 class Officer:
@@ -301,6 +302,7 @@ class Simulation:
 
         return officer_assignments, incident_response, time_travel_occurred
 
+
 class SimulationWithMaxUtilisation:
     SPEED_MPH = 30  # Speed in miles per hour
 
@@ -399,6 +401,7 @@ class SimulationWithMaxUtilisation:
 
                 incident.resolved = True  # Mark incident as resolved
                 incident.resolving_officer = officer.name  # Assign officer to incident
+                incident.allocation_time = self.current_time
                 incident.response_time = self.current_time + travel_time # Global time when the response reached
                 incident.resolution_time = officer.return_time # Global Time when the incident was resolved
                 self.resolved_incidents.append(incident)
@@ -433,6 +436,9 @@ class SimulationWithMaxUtilisation:
             if hour in [0, 8, 16]:
                 shift = 'Early' if hour == 0 else 'Day' if hour == 8 else 'Night'
                 self.update_officers_for_shift(shift)
+                if self.verbose == -1:
+                    no_of_officers = len([officer for station in self.officers.values() for officer in station])
+                    print(f"{no_of_officers=}")
 
             total_officers = len(self.officers["Station_1"]) + len(self.officers["Station_2"]) + len(self.officers["Station_3"])
 
@@ -455,7 +461,6 @@ class SimulationWithMaxUtilisation:
 
             for time in return_times_within_hour:
                 self.current_time = time
-
                 self.update_officer_availability()
                 pending_incidents = [inc for inc in self.cumulative_incidents if not inc.resolved]
                 allocations = model.make_allocation(pending_incidents, self.officers, self.current_time)

@@ -438,7 +438,7 @@ class SimulationWithMaxUtilisation:
                 self.update_officers_for_shift(shift)
                 if self.verbose == -1:
                     no_of_officers = len([officer for station in self.officers.values() for officer in station])
-                    print(f"{no_of_officers=}")
+                    print(f"{day=} {shift=} {no_of_officers=}")
 
             total_officers = len(self.officers["Station_1"]) + len(self.officers["Station_2"]) + len(self.officers["Station_3"])
 

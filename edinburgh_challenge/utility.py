@@ -1,5 +1,9 @@
+import sys
 from dataclasses import dataclass
 import itertools
+from pyproj import Proj, Transformer, transform
+from math import floor, ceil, radians, cos, sin, asin, sqrt
+
 
 @dataclass
 class Location:
@@ -26,7 +30,7 @@ def generate_early_shift_distributions(total_officers=15, stations=3):
     return distributions
 
 
-def calculate_distance(self, lat1, lon1, lat2, lon2):
+def calculate_distance(lat1, lon1, lat2, lon2):
     """
     Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
@@ -41,3 +45,23 @@ def calculate_distance(self, lat1, lon1, lat2, lon2):
     c = 2 * asin(sqrt(a))
     r = 3956  # Radius of Earth in miles. Use 6371 for kilometers
     return c * r
+
+
+def bng_to_latlong(easting, northing):
+    """
+    Convert British National Grid (BNG) coordinates to Latitude and Longitude.
+
+    :param easting: Easting value of BNG coordinate
+    :param northing: Northing value of BNG coordinate
+    :return: (latitude, longitude)
+    """
+    # Define the British National Grid (BNG) projection
+    bng_proj = Proj(init='epsg:27700')
+
+    # Define the WGS84 geographic coordinate system
+    wgs84_proj = Proj(init='epsg:4326')
+
+    # Perform the transformation
+    longitude, latitude = transform(bng_proj, wgs84_proj, easting, northing)
+
+    return latitude, longitude

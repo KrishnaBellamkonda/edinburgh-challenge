@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import defaultdict, deque
 from math import floor, ceil, radians, cos, sin, asin, sqrt
 import heapq
 import numpy as np
@@ -78,7 +78,7 @@ class SimplifiedModelNotBest(NaiveModel):
         super().__init__()
         self.shift_distribution = shift_distribution
         self.incident_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-        self.resolution_times = {"Immediate":[], "Standard":[], "Prompt":[]}
+        self.resolution_times = {"Immediate":[], "Standard":[], "Prompt":[], "Other resolution":[]}
         self.processed_incidents = set()
         self.police_stations_dict = police_stations_dict
 
@@ -148,7 +148,8 @@ class SimplifiedModelNotBest(NaiveModel):
         return {
             "Immediate":np.mean(self.resolution_times["Immediate"]),
             "Prompt":np.mean(self.resolution_times["Prompt"]),
-            "Standard": np.mean(self.resolution_times["Standard"])
+            "Standard": np.mean(self.resolution_times["Standard"]),
+            "Other resolution": np.mean(self.resolution_times["Other resolution"])
         }
 
     def make_allocation(self, incidents, officers, current_time):
@@ -332,7 +333,7 @@ class GreedyModel(NaiveModel):
         super().__init__()
         self.shift_distribution = shift_distribution
         self.incident_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-        self.resolution_times = {"Immediate":[], "Standard":[], "Prompt":[]}
+        self.resolution_times = {"Immediate":[], "Standard":[], "Prompt":[], "Other resolution":[]}
         self.processed_incidents = set()
         self.police_stations_dict = police_stations_dict
 
@@ -401,7 +402,8 @@ class GreedyModel(NaiveModel):
         return {
             "Immediate":np.mean(self.resolution_times["Immediate"]),
             "Prompt":np.mean(self.resolution_times["Prompt"]),
-            "Standard": np.mean(self.resolution_times["Standard"])
+            "Standard": np.mean(self.resolution_times["Standard"]), 
+            "Other resolution": np.mean(self.resolution_times["Other resolution"])
         }
 
     def predict_peak_time_adjustments(self, weights_dict, current_time):
@@ -431,10 +433,10 @@ class GreedyModel(NaiveModel):
         self.update_incident_count(incidents)
 
         # Define thresholds and priority weights for each priority
-        thresholds = {'Immediate': 1, 'Prompt': 3, 'Standard': 6}
-
+        thresholds = {'Immediate': 1/12, 'Prompt': 2/3, 'Standard': 6, "Other resolution": 20}
+        # Immediate - 5 minutes, Prompt - 40 minutes
         time_remaining_factor = 1.0  # Adjust the weight for time remaining
-        priority_weights = {'Immediate': 8.7, 'Prompt': 5, 'Standard': 1}  # Adjusted weights
+        priority_weights = {'Immediate': 8.7, 'Prompt': 5, 'Standard': 1, "Other resolution":1}  # Adjusted weights
         priority_weights = self.normalise_weights(priority_weights)
 
         # Adjust priority weights based on predicted peak times
@@ -459,22 +461,33 @@ class GreedyModel(NaiveModel):
 
             for inc in incidents:
                 if inc.urn not in allocations:  # Only consider unallocated incidents
-                    travel_time = self.calculate_distance(
-                        officer_station_location.x, officer_station_location.y,
-                        inc.latitude, inc.longitude) / self.SPEED_MPH
-                    time_since_reported = current_time - inc.global_time
-                    score = calculate_score(travel_time, time_since_reported, inc.priority)
+                    if inc.type == "Incident":
+                        travel_time = self.calculate_distance(
+                            officer_station_location.x, officer_station_location.y,
+                            inc.latitude, inc.longitude) / self.SPEED_MPH
+                        time_since_reported = current_time - inc.global_time
+                        score = calculate_score(travel_time, time_since_reported, inc.priority)
+                    elif inc.type == "Custody":
+                        travel_time = inc.max_travel_time
+                        time_since_reported = current_time - inc.global_time
+                        score = calculate_score(travel_time, time_since_reported, inc.priority)
                     heapq.heappush(incident_queue, (-score, inc.urn, inc))  # Using negative score for max heap
 
             # Allocate this officer to the most urgent incident
             if incident_queue:
                 _, _, most_urgent_incident = heapq.heappop(incident_queue)
                 allocations[most_urgent_incident.urn] = officer.name
-                travel_time = self.calculate_distance(
-                    officer_station_location.x, officer_station_location.y,
-                    most_urgent_incident.latitude, most_urgent_incident.longitude) / self.SPEED_MPH
-                resolution_time = current_time + travel_time + most_urgent_incident.deployment_time
-                self.resolution_times[most_urgent_incident.priority].append(resolution_time)
+                if most_urgent_incident.type == "Incident":
+                    travel_time = self.calculate_distance(
+                        officer_station_location.x, officer_station_location.y,
+                        most_urgent_incident.latitude, most_urgent_incident.longitude) / self.SPEED_MPH
+                    resolution_time = current_time + travel_time + most_urgent_incident.deployment_time
+                    self.resolution_times[most_urgent_incident.priority].append(resolution_time)
+                elif most_urgent_incident.type == "Custody":
+                    resolution_time = current_time + most_urgent_incident.max_travel_time + most_urgent_incident.max_wait_time + most_urgent_incident.max_processing_time
+                    most_urgent_incident.resolution_time = resolution_time
+                    self.resolution_times[most_urgent_incident.priority].append(resolution_time)
+                    
 
         # Mark unallocated incidents
         for inc in incidents:
@@ -485,6 +498,177 @@ class GreedyModel(NaiveModel):
 
 
 
+class ClosestPoliceStationModel(NaiveModel):
+
+    SPEED_MPH = 30
+
+    def __init__(self, shift_distribution, police_stations_dict):
+        super().__init__()
+        self.shift_distribution = shift_distribution
+        self.incident_counts = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        self.resolution_times = {"Immediate":[], "Standard":[], "Prompt":[], "Other resolution":[]}
+        self.processed_incidents = set()
+        self.police_stations_dict = police_stations_dict
+
+    def update_incident_count(self, incidents):
+        """
+        Update the count of incidents for each hour of each day.
+        Only update for new incidents.
+        """
+        for incident in incidents:
+            if incident.urn not in self.processed_incidents:
+                day = incident.day
+                hour = incident.hour
+                priority = incident.priority
+                self.incident_counts[day][hour][priority] += 1
+                self.processed_incidents.add(incident.urn)
+
+    def calculate_distance(self, lat1, lon1, lat2, lon2):
+        """
+        Calculate the great circle distance between two points
+        on the earth (specified in decimal degrees)
+        """
+        # Convert decimal degrees to radians
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+
+        # Haversine formula
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        r = 3956  # Radius of Earth in miles. Use 6371 for kilometers
+        return c * r
+
+    def get_incident_resolution_time(self, incident, officer, current_time):
+        officer_police_station_location = self.police_stations_dict[officer.station]
+        distance_to_incident = self.calculate_distance(officer_police_station_location.x,
+                                                  officer_police_station_location.y,
+                                                  incident.latitude,
+                                                  incident.longitude
+                                                 )
+        travel_time = distance_to_incident / self.SPEED_MPH
+        deployment_time = incident.deployment_time
+        resolution_time = current_time + travel_time + deployment_time
+        return resolution_time
+
+    def get_incident_priority_count(self, incidents):
+        counts = defaultdict(int)
+        for inc in incidents:
+            if not inc.resolved:
+                counts[inc.priority] += 1
+        return counts
+
+    def get_no_available_officers_next_hour(self, officers, current_time):
+        next_hour = ceil(current_time)
+        no_available_officers = 0
+        for station in officers.values():
+            for officer in station:
+                if officer.available:
+                    no_available_officers += 1
+                else:
+                    if officer.return_time <= next_hour:
+                        no_available_officers += 1
+        return no_available_officers
+
+
+    def get_mean_resolution_time(self):
+        return {
+            "Immediate":np.mean(self.resolution_times["Immediate"]),
+            "Prompt":np.mean(self.resolution_times["Prompt"]),
+            "Standard": np.mean(self.resolution_times["Standard"]), 
+            "Other resolution": np.mean(self.resolution_times["Other resolution"])
+        }
+
+    def predict_peak_time_adjustments(self, weights_dict, current_time):
+        # Initialize weights
+
+        # Adjust weights based on peak hours and days
+        if current_time % 24 in [8, 9, 10]:
+            # Adjust the weight for Immediate incidents during peak hours
+            weights_dict['Immediate'] *= 1.2  # Adjust the weight as needed
+
+        if current_time // 24 + 1 in [1, 2]:
+            # Adjust the weight for Prompt incidents on peak days
+            weights_dict['Prompt'] *= 1.2
+
+        if current_time % 24 in [15, 16]:
+            # Adjust the weight for Standard incidents during peak hours
+            weights_dict['Standard'] *= 1.2
+
+        return self.normalise_weights(weights_dict)
+
+    def normalise_weights(self, weights_dict):
+        total_weight = sum(weights_dict.values())
+        normalized_weights_dict = {incident_type: weight / total_weight for incident_type, weight in weights_dict.items()}
+        return normalized_weights_dict
+
+    def make_allocation(self, incidents, officers, current_time):
+        self.update_incident_count(incidents)
+
+        # Define thresholds and priority weights for each priority
+        thresholds = {'Immediate': 1/12, 'Prompt': 2/3, 'Standard': 1000, "Other resolution": 1000}
+        time_remaining_factor = 1.0  # Adjust the weight for time remaining
+        priority_weights = {'Immediate': 1/thresholds["Immediate"], 
+                            'Prompt': 1/thresholds["Prompt"], 
+                            'Standard': 1/thresholds["Standard"], 
+                            "Other resolution": 1/thresholds["Other resolution"]}  # Adjusted weights
+        priority_weights = self.normalise_weights(priority_weights)
+
+        # Adjust priority weights based on predicted peak times
+        priority_weights = self.predict_peak_time_adjustments(priority_weights, current_time)
+
+        # Function to calculate the score based on distance and priority
+        def calculate_score(travel_time, time_since_reported, priority):
+            time_remaining = thresholds[priority] - time_since_reported - travel_time
+            urgency = time_remaining_factor / (time_remaining + np.finfo(float).eps)
+            return urgency * priority_weights[priority]
+
+        # Get all available officers and index them by their station using deque
+        available_officers_by_station = {}
+        for station_officers in officers.values():
+            for officer in station_officers:
+                if officer.available:
+                    if officer.station not in available_officers_by_station:
+                        available_officers_by_station[officer.station] = deque()
+                    available_officers_by_station[officer.station].append(officer)
+
+        allocations = {}
+        incident_queue = []
+
+        # Process each incident and use a heap to maintain the sorted order by score
+        for inc in incidents:
+            if inc.type == "Incident":
+
+                # Find the closest police station from precomputed distances
+                closest_station, min_distance = min(inc.distances.items(), key=lambda x: x[1])
+
+                travel_time = min_distance / self.SPEED_MPH
+                time_since_reported = current_time - inc.global_time
+                score = calculate_score(travel_time, time_since_reported, inc.priority)
+                heapq.heappush(incident_queue, (-score, inc.urn, inc, closest_station, min_distance))
+            
+            elif inc.type == "Custody":
+                travel_time = inc.max_travel_time
+                time_since_reported = current_time - inc.global_time
+                score = calculate_score(travel_time, time_since_reported, inc.priority)
+                heapq.heappush(incident_queue, (-score, inc.urn, inc, "", ""))  # Using negative score for max heap
+
+
+        # Allocate officers to incidents
+        while incident_queue:
+            score, urn, inc, closest_station, min_distance = heapq.heappop(incident_queue)
+            if closest_station in available_officers_by_station and available_officers_by_station[closest_station]:
+                officer = available_officers_by_station[closest_station].popleft()
+                allocations[inc.urn] = officer.name
+            elif closest_station == "":
+                closest_station = np.random.choice(list(available_officers_by_station.keys()))
+                if available_officers_by_station[closest_station]:
+                    officer = available_officers_by_station[closest_station].popleft()
+                    allocations[inc.urn] = officer.name
+                else:
+                    allocations[inc.urn] = None
+
+        return allocations
 # Note: The rest of the SimplifiedModel class remains unchanged.
 
 # Explanation:

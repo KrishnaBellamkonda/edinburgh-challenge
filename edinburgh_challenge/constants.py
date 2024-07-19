@@ -1,10 +1,18 @@
 from edinburgh_challenge.utility import Location
 from dataclasses import dataclass
 
+from enum import Enum
+
 
 police_station_1 = Location(x=55.868709, y=-4.2579871)
 police_station_2 = Location (x=55.849171,y= -4.2164508)
 police_station_3 = Location(x=55.830168,y= -4.2468263)
+
+class Shift(Enum):
+    early = "Early"
+    day = "Day"
+    night = "Night"
+
 
 @dataclass
 class PoliceStations:

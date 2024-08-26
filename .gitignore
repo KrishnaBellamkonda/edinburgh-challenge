@@ -1,2 +1,5 @@
 venv/
 pycache/
+simulation_results/
+station_results/
+data/

@@ -384,3 +384,36 @@ def generate_simulation_specs(estates_df):
                 police_stations_dict.values()]
 
     return ps_coords, shift_distribution, shift_distribution_weekend, police_stations_dict, police_stations
+
+
+def generate_simulation_specs_with_latlongs(estates_df):
+    police_station_filter = estates_df["Property Classification"] == "Police Station"
+    local_policing_filter = estates_df["Primary Classification (Use)"] == "Local Policing"
+    deployment_filter = estates_df["Deployment station? Y/N"] == "Yes"
+    estates_df = estates_df[police_station_filter & local_policing_filter & deployment_filter]
+    response_officers_count = estates_df["DPU_ResponseOfficers_Count"]
+
+    df_converted = estates_df
+
+
+    ps_data = df_converted[["Site Name", "Latitude", "Longitude", "DPU_ResponseOfficers_Count", "Division"]]
+    ps_data = ps_data.rename(columns={"Site Name":"Name", "DPU_ResponseOfficers_Count":"n_officers"})
+    police_stations = [ PoliceStation(location=Location(x=row["Latitude"], y=row["Longitude"]), division=row["Division"], name=row["Name"], simulation_name=f"station_{n+1}", n_officers=row["n_officers"]) for n, (_, row) in enumerate(ps_data.iterrows())]
+    police_stations_dict = {f"station_{n+1}": Location(x=row["Latitude"], y=row["Longitude"]) for n, (_,row) in enumerate(ps_data.iterrows())}
+
+    shift_distribution = {
+    "Early":{f"station_{n+1}":int(n_officers*0.2) for n, n_officers  in enumerate(ps_data["n_officers"])},
+    "Day":{f"station_{n+1}":int(n_officers*0.5) for n,n_officers  in enumerate(ps_data["n_officers"])},
+    "Night":{f"station_{n+1}":int(n_officers*0.3) for n,n_officers  in enumerate(ps_data["n_officers"])},
+    }
+
+    shift_distribution_weekend = {
+    "Early":{f"station_{n+1}":int(n_officers*0.2) for n, n_officers  in enumerate(ps_data["n_officers"])},
+    "Day":{f"station_{n+1}":int(n_officers*0.4) for n,n_officers  in enumerate(ps_data["n_officers"])},
+    "Night":{f"station_{n+1}":int(n_officers*0.4) for n,n_officers  in enumerate(ps_data["n_officers"])},
+    }
+
+    ps_coords = [ (p.x, p.y) for p in
+                police_stations_dict.values()]
+
+    return ps_coords, shift_distribution, shift_distribution_weekend, police_stations_dict, police_stations

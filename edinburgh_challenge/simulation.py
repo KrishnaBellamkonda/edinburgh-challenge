@@ -477,7 +477,8 @@ class Simulator:
 
             for urn, row in hour_incidents.iterrows():
                 deployment_time = row["deployment_time"]
-                station_cols = [f"station_{i+1}" for i in range(len(self.station_coords))]
+#                station_cols = [f"station_{i+1}" for i in range(len(self.station_coords))]
+                station_cols = [name for name in self.df.columns if "station_" in name]
 
                 distances = {col: row[col] for col in station_cols}
 

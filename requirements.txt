@@ -1,8 +1,0 @@
-numpy
-pandas
-seaborn
-matplotlib
-gym
-scipy
-scikit-learn
-osmnx

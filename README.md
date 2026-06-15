@@ -1,10 +1,8 @@
 # 🚓 Police Scotland Research / Data Science Internship
 
 **Authors:** 
-- Bellamkonda Sri Krishna Chaitanya
-*MPhil Scientific Computing, University of Cambridge (2025 – Present)*  
-- Bellamokonda Aaditya Sri Krishna
-*Data Scientist at Frontier Economics*
+- Bellamkonda Sri Krishna Chaitanya: *MPhil Scientific Computing, University of Cambridge (2025 – Present)*  
+- Bellamokonda Aaditya Sri Krishna: *Data Scientist at Frontier Economics*
 
 ---
 
